@@ -1,43 +1,43 @@
-# dbstat
+<h1 align="center">stats</h1>
 
-Dbstat подключается к SQL-базе и печатает статистику по таблицам и колонкам: количество строк, пропуски, уникальные значения, min/max, среднее, стандартное отклонение и топ значений.
+<p align="center"><em>Read-only table and column statistics for a SQL database</em></p>
 
-**Чем dbstat не является.** Это только чтение. Он не чистит данные, не мигрирует и ничего не меняет: сразу после подключения выставляется `SET default_transaction_read_only = on`, а в коде нет ни одного INSERT/UPDATE/DELETE/DDL. Агрегаты считаются на стороне БД, в Python строки не вытягиваются.
+<div align="center">
 
-```
---url ──► dialect (postgres) ──► агрегаты в БД ──► TableStats ──► render (table | json | md)
-```
+[![Documentation](https://img.shields.io/badge/docs-online-4ade80?style=flat-square)](https://example.com/stats/docs/)
+[![Python](https://img.shields.io/badge/language-Python-60a5fa?style=flat-square)]()
+[![PostgreSQL](https://img.shields.io/badge/database-PostgreSQL-f87171?style=flat-square)]()
+[![Output](https://img.shields.io/badge/output-table%20%7C%20json%20%7C%20md-a87ef5?style=flat-square)]()
+
+</div>
 
 ---
 
-## Установка
+stats connects to a SQL database and prints per-table and per-column statistics: row count, nulls, distinct values, min/max, mean, standard deviation, and top values.
 
-```
+**What stats is not.** It is read-only. It does not clean, migrate, or change anything: `SET default_transaction_read_only = on` runs right after connect, and there is no INSERT/UPDATE/DELETE/DDL in the code. Aggregates are computed on the database side; rows are never pulled into Python.
+
+---
+
+## Install
+
+```bash
 pip install -e ".[postgres]"
 ```
 
-Требуется Python `3.10+`. Драйвер `psycopg[binary]>=3.1` ставится как extra `postgres` и для импорта пакета не нужен. Без него утилита сообщит: `pip install 'dbstat[postgres]'`.
+Python `3.10+`. The `psycopg[binary]>=3.1` driver is an extra (`postgres`) and is not needed to import the package. Without it the tool reports: `pip install 'stats[postgres]'`.
 
-## Тестовая база
+---
 
-```
-export PG_URL="postgresql://postgres:postgres@localhost:5432/postgres"
-bash testdata/run_checks.sh
-```
+## Example
 
-Скрипт (нужен `psql`) создаёт схему `dbstat_demo` (идемпотентно), прогоняет `dbstat` и сверяет отчёт с `testdata/expected_users.txt`. Каждая строка этого файла — регулярное выражение, которое должно совпасть со строкой отчёта. Данные в сиде задаются формулами без `random()`, поэтому числа точные. Время `created_at` проверяется с допуском на часовой пояс сервера.
-
-Сид даёт 1240 пользователей (40 без email, 259 без age, статусы active 868 / blocked 248 / deleted 124) и 8300 заказов.
-
-## Примеры
-
-```
-dbstat --url "$PG_URL" --schema dbstat_demo
-dbstat --url "$PG_URL" --schema dbstat_demo --table users --columns age,status
-dbstat --url "$PG_URL" --schema dbstat_demo --table orders --format json --limit 1000
+```bash
+stats --url "$PG_URL" --schema dbstat_demo
+stats --url "$PG_URL" --schema dbstat_demo --table users --columns age,status
+stats --url "$PG_URL" --schema dbstat_demo --table orders --format json --limit 1000
 ```
 
-Вывод для `--table users`:
+Output for `--table users`:
 
 ```
 schema: dbstat_demo
@@ -50,53 +50,75 @@ table: users  (row_count=1240, columns=5)
   status      text         non_null=1240  null=0            distinct=3     top: active(868), blocked(248), deleted(124)
 ```
 
-## Флаги
+---
 
-| Флаг | Описание |
-|------|----------|
-| `--url` | DSN (обязательный) |
-| `--db` | СУБД из реестра диалектов, по умолчанию `postgres` |
-| `--schema` | схема, по умолчанию `public` |
-| `--table` | таблицы через запятую, по умолчанию все базовые таблицы схемы (представления не входят) |
-| `--columns` | колонки через запятую, по умолчанию все |
-| `--format` | `table` (по умолчанию), `json`, `md` |
-| `--top` | сколько топ-значений показывать, по умолчанию 5, `0` отключает |
-| `--limit` | считать статистику по первым N строкам таблицы |
+## Flags
 
-Код возврата: `0` при успехе, `1` если нет таблиц или колонок для отчёта либо запрос не удался.
+| Flag | Description |
+|------|-------------|
+| `--url` | DSN (required) |
+| `--db` | database from the dialect registry, default `postgres` |
+| `--schema` | schema, default `public` |
+| `--table` | comma-separated tables, default all base tables of the schema (views are excluded) |
+| `--columns` | comma-separated columns, default all |
+| `--format` | `table` (default), `json`, `md` |
+| `--top` | how many top values to show, default `5`, `0` disables |
+| `--limit` | count statistics over the first N rows of the table |
+| `--version` | print the version and exit |
 
-## Сэмплирование (`--limit`)
+Exit code: `0` on success, `1` if there are no tables or columns to report, or a query fails.
 
-`--limit N` включает сэмплирование: если в таблице больше N строк, статистика считается по `SELECT * FROM t LIMIT N`, а в заголовке таблицы появляется пометка `[sampled: limit=N]` (в json это `"sampled": true` и `"sample_limit": N`). **Все числа колонок (non_null, null, distinct, min, max, mean, std, топ) относятся к сэмплу, а не к таблице целиком.** Только `row_count` в заголовке всегда настоящий, его считает честный `COUNT(*)`. Сэмпл берётся без `ORDER BY`, то есть это «первые попавшиеся N строк», а не случайная выборка. Если строк не больше N, сэмплирования нет и пометки нет.
+---
 
-Без `--limit` для таблиц больше 1 000 000 строк в stderr выводится предупреждение, но работа продолжается.
+## Sampling (`--limit`)
 
-## Решения по формату
+`--limit N` enables sampling: if a table has more than N rows, statistics are computed over `SELECT * FROM t LIMIT N`, and the table header gets a `[sampled: limit=N]` mark (in json: `"sampled": true` and `"sample_limit": N`). **All column numbers (non_null, null, distinct, min, max, mean, std, top) refer to the sample, not the whole table.** Only `row_count` in the header is always real, computed with an honest `COUNT(*)`. The sample is taken without `ORDER BY`, i.e. "the first N rows that happen to come back", not a random sample. If the table has no more than N rows, there is no sampling and no mark.
 
-- `null=0` печатается всегда, а `null=<n> (<pct>%)` с процентом только если пропуски есть.
-- `mean` и `std` только у числовых колонок. `std=-`, если значений меньше двух (`mean=-` для колонки без значений).
-- min/max и топ-значения в `table` и `md` обрезаются до 20 символов (последний символ `…`), в `json` выводятся полностью.
-- Топ-значения печатаются через запятую, значение в кавычках, если содержит пробел или запятую.
-- Топ считается только для текстовых колонок (не числовых и не дата/время) и только если есть повторы, иначе все частоты равны 1. У такой колонки вместо min/max показывается топ.
-- Типы без сравнения или min/max (`json`, `point`, `boolean` и т.п.) считаются повторным запросом через `::text`.
-- В отчёте `timestamp with time zone` печатается как `timestamptz`, `character varying` как `varchar`. Время печатается в часовом поясе сессии.
-- Колонки внутри таблицы идут в порядке объявления, `--columns` лишь фильтрует их. Несуществующие таблицы и колонки пропускаются с сообщением в stderr.
+Without `--limit`, tables with more than 1,000,000 rows get a warning on stderr, but the run continues.
 
-## Структура проекта
+---
+
+## Format decisions
+
+- `null=0` is always printed; `null=<n> (<pct>%)` with the percentage only when nulls exist.
+- `mean` and `std` only for numeric columns. `std=-` when there are fewer than two values (`mean=-` for a column with no values).
+- min/max and top values are cut to 20 characters in `table` and `md` (the last character is `…`); in `json` they are printed in full.
+- Top values are printed comma-separated; a value is quoted if it contains a space or a comma.
+- Top is computed only for text columns (not numeric, not date/time) and only when some value repeats; otherwise every count is 1. Such a column shows top instead of min/max.
+- Types without ordering or equality (`json`, `point`, `boolean`, etc.) are counted with a retry via `::text`.
+- In the report `timestamp with time zone` is printed as `timestamptz`, `character varying` as `varchar`. Time is printed in the session time zone.
+- Columns inside a table keep their declared order; `--columns` only filters them. Missing tables and columns are skipped with a message on stderr.
+
+---
+
+## Test database
+
+```bash
+export PG_URL="postgresql://postgres:postgres@localhost:5432/postgres"
+bash testdata/run_checks.sh
+```
+
+The script (needs `psql`) creates the `dbstat_demo` schema (idempotently), runs `stats`, and compares the report against `testdata/expected_users.txt`. Every line of that file is a regular expression that must match a line of the report. Seed values are deterministic formulas (no `random()`), so the numbers are exact. `created_at` is checked with a tolerance for the server time zone.
+
+The seed produces 1240 users (40 without email, 259 without age, statuses: active 868 / blocked 248 / deleted 124) and 8300 orders.
+
+---
+
+## Project structure
 
 ```
-dbstat/
+stats/
 ├── pyproject.toml
 ├── README.md
-├── dbstat/
+├── stats/
 │   ├── __init__.py          ← __version__
 │   ├── models.py            ← ColumnMeta, ColumnAgg, ColumnStats, TableStats
 │   ├── registry.py          ← register(), get_dialect(), available_dialects()
-│   ├── stats.py             ← сборка TableStats из диалекта
+│   ├── stats.py             ← builds TableStats from a dialect
 │   ├── render.py            ← render_table, render_json, render_md
 │   ├── cli.py               ← argparse, main()
 │   └── dialects/
-│       ├── __init__.py      ← импорты диалектов для регистрации
+│       ├── __init__.py      ← imports dialects for registration
 │       ├── base.py          ← abc Dialect
 │       └── postgres.py      ← PostgresDialect
 └── testdata/
@@ -105,16 +127,37 @@ dbstat/
     └── expected_users.txt
 ```
 
-## Как добавить диалект
+---
 
-1. Создать файл `dbstat/dialects/<name>.py` и класс-наследник `Dialect` с декоратором `@register("<name>")`.
-2. Реализовать 4 метода:
+## Adding a dialect
+
+1. Create `stats/dialects/<name>.py` and a class inheriting `Dialect` decorated with `@register("<name>")`.
+2. Implement 4 methods:
    - `list_tables(schema) -> list[str]`
    - `table_row_count(table, schema) -> int`
    - `column_metadata(table, schema) -> list[ColumnMeta]`
-   - `column_aggregates(table, column, schema, limit, top) -> ColumnAgg`, где `column` это `ColumnMeta`, а `limit` уже учтён (`None` значит без сэмпла).
-3. Добавить одну строку импорта в `dbstat/dialects/__init__.py`: `from dbstat.dialects import <name>`.
-4. Добавить extra с драйвером в `pyproject.toml` (`[project.optional-dependencies]`).
+   - `column_aggregates(table, column, schema, limit, top) -> ColumnAgg`, where `column` is a `ColumnMeta` and `limit` is already resolved (`None` means no sample).
+3. Add one import line to `stats/dialects/__init__.py`: `from stats.dialects import <name>`.
+4. Add an extra with the driver to `pyproject.toml` (`[project.optional-dependencies]`).
 
-Импорт драйвера делайте необязательным (как в `postgres.py`): пакет должен импортироваться без него, а ошибка с подсказкой по установке появляется только при подключении. Идентификаторы экранируйте средствами драйвера, значения передавайте параметрами, а не конкатенацией.
-# stats
+Keep the driver import optional (as in `postgres.py`): the package must import without it, and the install hint must appear only on connect. Quote identifiers via the driver, pass values as parameters, never concatenate.
+
+---
+
+## Contributing
+
+Contributions are welcome — open an issue or PR.
+
+- **Keep it small.** stats is a single-purpose CLI. New features should solve a problem that can't be fixed by a dialect or a flag.
+- **Match the style.** `__` for private members, utilities stay in their module, one class per responsibility.
+- **One thing per PR.** Focused PRs merge faster.
+
+If you're unsure whether an idea fits, open an issue first.
+
+---
+
+<p align="center"><sub>
+<a href="https://example.com/stats/docs/">Docs</a> ·
+<a href="https://github.com/example/stats/issues">Issues</a> ·
+<a href="https://github.com/example/stats/releases">Releases</a>
+</sub></p>
