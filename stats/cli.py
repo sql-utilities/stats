@@ -33,34 +33,34 @@ def _positive(value: str) -> int:
     try:
         number = int(value)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"нужно целое число, получено: {value}")
+        raise argparse.ArgumentTypeError(f"expected an integer, got: {value}")
 
-    if number < 1: raise argparse.ArgumentTypeError("нужно число больше нуля")
+    if number < 1: raise argparse.ArgumentTypeError("expected a number greater than zero")
     return number
 
 def _non_negative(value: str) -> int:
     try:
         number = int(value)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"нужно целое число, получено: {value}")
+        raise argparse.ArgumentTypeError(f"expected an integer, got: {value}")
 
-    if number < 0: raise argparse.ArgumentTypeError("нужно число не меньше нуля")
+    if number < 0: raise argparse.ArgumentTypeError("expected a number greater than or equal to zero")
     return number
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="stats",
-        description="Печатает статистику по таблицам и колонкам SQL-базы. Только читает данные."
+        description="Print table and column statistics of a SQL database. Read-only."
     )
 
-    parser.add_argument("--url", required=True, help='DSN, например "postgresql://user:pass@host:5432/db"')
-    parser.add_argument("--db", default="postgres", help="СУБД из реестра диалектов (по умолчанию postgres)")
-    parser.add_argument("--schema", default="public", help="схема (по умолчанию public)")
-    parser.add_argument("--table", help="таблицы через запятую (по умолчанию все базовые таблицы схемы)")
-    parser.add_argument("--columns", help="колонки через запятую (по умолчанию все)")
-    parser.add_argument("--format", choices=list(RENDERERS), default="table", help="формат отчёта (по умолчанию table)")
-    parser.add_argument("--top", type=_non_negative, default=5, help="сколько топ-значений показывать (по умолчанию 5, 0 отключает)")
-    parser.add_argument("--limit", type=_positive, default=None, help="считать статистику по первым N строкам таблицы (сэмпл)")
+    parser.add_argument("--url", required=True, help='DSN, e.g. "postgresql://user:pass@host:5432/db"')
+    parser.add_argument("--db", default="postgres", help="database from the dialect registry (default: postgres)")
+    parser.add_argument("--schema", default="public", help="schema (default: public)")
+    parser.add_argument("--table", help="comma-separated tables (default: all base tables of the schema)")
+    parser.add_argument("--columns", help="comma-separated columns (default: all)")
+    parser.add_argument("--format", choices=list(RENDERERS), default="table", help="report format (default: table)")
+    parser.add_argument("--top", type=_non_negative, default=5, help="how many top values to show (default: 5, 0 disables)")
+    parser.add_argument("--limit", type=_positive, default=None, help="count statistics over the first N rows of the table (sample)")
     parser.add_argument("--version", action="version", version=f"stats {__version__}")
 
     return parser
@@ -80,13 +80,13 @@ def main(argv: list[str] | None = None) -> int:
             limit=args.limit
         )
     except Exception as err:
-        print(f"Ошибка при сборе статистики: {err}", file=sys.stderr)
+        print(f"failed to collect statistics: {err}", file=sys.stderr)
         return 1
     finally:
         dialect.close()
 
     if not stats:
-        print(f"В схеме {args.schema} нет таблиц или колонок для статистики", file=sys.stderr)
+        print(f"no tables or columns to report in schema {args.schema}", file=sys.stderr)
         return 1
 
     print(RENDERERS[args.format](stats))
