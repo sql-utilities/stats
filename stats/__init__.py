@@ -1,5 +1,5 @@
 """
-    Desc: Dbstat package, prints table and column statistics of a SQL database
+    Desc: stats package, prints table and column statistics of a SQL database
     Creator: Kirosha
 """
 
