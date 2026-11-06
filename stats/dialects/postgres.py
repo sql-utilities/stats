@@ -121,14 +121,14 @@ class PostgresDialect(Dialect):
     def __init__(self, url: str):
         super().__init__(url)
 
-        if psycopg is None: raise SystemExit("Не найден драйвер psycopg. Установите: pip install 'stats[postgres]'")
+        if psycopg is None: raise SystemExit("psycopg driver is not installed, run: pip install 'stats[postgres]'")
 
         try:
             # autocommit: a failed query does not break the next ones
             self.__connection = psycopg.connect(url, autocommit=True)
             self.__connection.execute(READ_ONLY)
         except psycopg.Error as err:
-            raise SystemExit(f"Не удалось подключиться к базе: {err}")
+            raise SystemExit(f"failed to connect to the database: {err}")
 
     def list_tables(self, schema: str) -> list[str]:
         rows = self.__fetch(
