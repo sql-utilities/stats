@@ -18,5 +18,5 @@ def available_dialects() -> list[str]:
 
 def get_dialect(name: str) -> type:
     dialect = _DIALECTS.get(name)
-    if not dialect: raise SystemExit(f"Неизвестная СУБД: {name}. Доступные: {', '.join(available_dialects())}")
+    if not dialect: raise SystemExit(f"unknown dialect: {name}. Available: {', '.join(available_dialects())}")
     return dialect
