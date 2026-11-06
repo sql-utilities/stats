@@ -4,11 +4,11 @@ set -euo pipefail
 HERE="$(dirname "$0")"
 
 psql "$PG_URL" -v ON_ERROR_STOP=1 -f "$HERE/seed_postgres.sql"
-dbstat --url "$PG_URL" --schema dbstat_demo --table users --format table >/dev/null
-dbstat --url "$PG_URL" --schema dbstat_demo --format json | python -m json.tool >/dev/null
+stats --url "$PG_URL" --schema dbstat_demo --table users --format table >/dev/null
+stats --url "$PG_URL" --schema dbstat_demo --format json | python -m json.tool >/dev/null
 
 # every non-comment line of expected_users.txt is a regex that must match a line of the report
-REPORT="$(dbstat --url "$PG_URL" --schema dbstat_demo --table users --format table)"
+REPORT="$(stats --url "$PG_URL" --schema dbstat_demo --table users --format table)"
 while IFS= read -r pattern; do
     [[ -z "$pattern" || "$pattern" == \#* ]] && continue
     if ! grep -Eq -- "$pattern" <<< "$REPORT"; then
