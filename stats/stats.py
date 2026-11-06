@@ -21,7 +21,7 @@ def collect_table(dialect: Dialect, table: str, schema: str, columns: list[str] 
         found = [meta for meta in metas if meta.name in columns]
 
         missing = [name for name in columns if name not in [meta.name for meta in found]]
-        if missing: __warn(f"таблица {table}: нет колонок {', '.join(missing)}")
+        if missing: __warn(f"table {table}: missing columns {', '.join(missing)}")
 
         metas = found
 
@@ -34,7 +34,7 @@ def collect_table(dialect: Dialect, table: str, schema: str, columns: list[str] 
     sample_limit = limit if sampled else None
 
     if limit is None and row_count > LARGE_TABLE_ROWS:
-        __warn(f"таблица {table}: {row_count} строк, статистика по полной выборке; используйте --limit для сэмпла")
+        __warn(f"table {table}: {row_count} rows, statistics over the full scan; use --limit to sample")
 
     return TableStats(
         name=table,
@@ -53,7 +53,7 @@ def collect(dialect: Dialect, schema: str, tables: list[str] | None = None, colu
 
     if tables:
         missing = [table for table in tables if table not in existing]
-        if missing: __warn(f"схема {schema}: нет таблиц {', '.join(missing)}")
+        if missing: __warn(f"schema {schema}: missing tables {', '.join(missing)}")
 
         targets = [table for table in tables if table in existing]
     else:
