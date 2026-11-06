@@ -1,0 +1,11 @@
+# Expected output of: dbstat --url "$PG_URL" --schema dbstat_demo --table users --format table
+# Every non-comment line is an extended regex (grep -E) that must match a line of the report.
+# Numbers are exact: all values of seed_postgres.sql are deterministic formulas.
+# created_at min/max are tolerant to the server time zone (the report prints them in it).
+^schema: dbstat_demo$
+^table: users  \(row_count=1240, columns=5\)$
+^  id +integer +non_null=1240 +null=0 +distinct=1240 +min=1 +max=1240 +mean=620\.5 +std=358\.1$
+^  email +text +non_null=1200 +null=40 \(3\.2%\) +distinct=1143 +top: user[0-9]+@example\.com\(2\)
+^  age +integer +non_null=981 +null=259 \(20\.9%\) +distinct=75 +min=18 +max=92 +mean=55\.29 +std=21\.63$
+^  created_at +timestamptz +non_null=1240 +null=0 +distinct=1240 +min=2023-01-0[23] .*max=2024-12-2[6-9]
+^  status +text +non_null=1240 +null=0 +distinct=3 +top: active\(868\), blocked\(248\), deleted\(124\)$
